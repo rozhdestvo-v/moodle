@@ -1,17 +1,4 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.js"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -27,8 +14,18 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "ngrok-skip-browser-warning,Content-Type,Accept,Access-Control-Allow-Headers"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "86400"
         }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
     }
   ]
 }
