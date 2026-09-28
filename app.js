@@ -13,7 +13,8 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
     );
 
     if (req.method === "OPTIONS") {
-      return res.status(204).end();
+      res.status(204).end();
+      return;
     }
 
     next();
@@ -21,11 +22,11 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
 
   app.use((req, res, next) => {
     if (req.path !== "/" && !req.path.endsWith("/")) {
-      const query = req.url.includes("?")
-        ? req.url.substring(req.url.indexOf("?"))
-        : "";
+      const queryIndex = req.url.indexOf("?");
+      const query = queryIndex === -1 ? "" : req.url.substring(queryIndex);
 
-      return res.redirect(308, `${req.path}/${query}`);
+      res.redirect(308, `${req.path}/${query}`);
+      return;
     }
 
     next();
@@ -42,55 +43,51 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
   });
 
   app.get("/sha1/:input", (req, res) => {
-    const hash = crypto
+    const sha1 = crypto
       .createHash("sha1")
       .update(req.params.input)
       .digest("hex");
 
     res.type("text/plain; charset=utf-8");
-    res.send(hash);
+    res.send(sha1);
   });
 
-  const getResource = (req, res) => {
+  const handleReq = (req, res) => {
     const addr = req.query.addr || req.body?.addr;
 
-    if (typeof addr !== "string" || addr.length === 0) {
-      res.status(400);
-      res.type("text/plain; charset=utf-8");
-      res.send("Missing addr");
+    if (typeof addr !== "string" || !addr) {
+      res.status(400).type("text/plain; charset=utf-8").send("Missing addr");
       return;
     }
 
     try {
       http
-        .get(addr, (response) => {
+        .get(addr, (remoteResponse) => {
           let content = "";
 
-          response.setEncoding("utf8");
+          remoteResponse.setEncoding("utf8");
 
-          response.on("data", (part) => {
-            content += part;
+          remoteResponse.on("data", (chunk) => {
+            content += chunk;
           });
 
-          response.on("end", () => {
-            res.type("text/plain; charset=utf-8");
-            res.send(content);
+          remoteResponse.on("end", () => {
+            res.type("text/plain; charset=utf-8").send(content);
           });
         })
         .on("error", () => {
-          res.status(502);
-          res.type("text/plain; charset=utf-8");
-          res.send("Request failed");
+          res
+            .status(502)
+            .type("text/plain; charset=utf-8")
+            .send("Request failed");
         });
     } catch {
-      res.status(400);
-      res.type("text/plain; charset=utf-8");
-      res.send("Invalid addr");
+      res.status(400).type("text/plain; charset=utf-8").send("Invalid addr");
     }
   };
 
-  app.get("/req", getResource);
-  app.post("/req", getResource);
+  app.get("/req", handleReq);
+  app.post("/req", handleReq);
 
   app.all(/.*/, (req, res) => {
     res.type("text/plain; charset=utf-8");
