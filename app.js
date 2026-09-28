@@ -67,8 +67,25 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
     }
 
     try {
-      http
-        .get(addr, (remoteResponse) => {
+      const target = new URL(addr);
+
+      if (target.protocol !== "http:") {
+        res
+          .status(400)
+          .type("text/plain; charset=utf-8")
+          .send("Only http is supported");
+        return;
+      }
+
+      const remoteRequest = http.get(
+        target,
+        {
+          headers: {
+            "User-Agent": "Mozilla/5.0",
+            Accept: "text/plain,text/html,*/*",
+          },
+        },
+        (remoteResponse) => {
           let content = "";
 
           remoteResponse.setEncoding("utf8");
@@ -78,15 +95,20 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
           });
 
           remoteResponse.on("end", () => {
-            res.type("text/plain; charset=utf-8").send(content);
+            res
+              .status(remoteResponse.statusCode || 200)
+              .type("text/plain; charset=utf-8")
+              .send(content);
           });
-        })
-        .on("error", () => {
-          res
-            .status(502)
-            .type("text/plain; charset=utf-8")
-            .send("Request failed");
-        });
+        },
+      );
+
+      remoteRequest.on("error", () => {
+        res
+          .status(502)
+          .type("text/plain; charset=utf-8")
+          .send("Request failed");
+      });
     } catch {
       res.status(400).type("text/plain; charset=utf-8").send("Invalid addr");
     }
