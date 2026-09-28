@@ -43,19 +43,19 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
   });
 
   app.get("/sha1/:input", (req, res) => {
-    const sha1 = crypto
+    const hash = crypto
       .createHash("sha1")
       .update(req.params.input)
       .digest("hex");
 
     res.type("text/plain; charset=utf-8");
-    res.send(sha1);
+    res.send(hash);
   });
 
   const handleReq = (req, res) => {
     const addr = req.query.addr || req.body?.addr;
 
-    if (typeof addr !== "string" || !addr) {
+    if (typeof addr !== "string" || addr.length === 0) {
       res.status(400).type("text/plain; charset=utf-8").send("Missing addr");
       return;
     }
