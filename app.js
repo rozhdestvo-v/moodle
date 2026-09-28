@@ -7,9 +7,15 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
 
   app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
+
     res.setHeader(
       "Access-Control-Allow-Methods",
       "GET,POST,PUT,PATCH,OPTIONS,DELETE",
+    );
+
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "ngrok-skip-browser-warning,Content-Type,Accept,Access-Control-Allow-Headers",
     );
 
     if (req.method === "OPTIONS") {
