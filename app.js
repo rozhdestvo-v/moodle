@@ -26,27 +26,27 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
 
   app.use((req, res, next) => {
     if (req.path !== "/" && !req.path.endsWith("/")) {
-      const queryIndex = req.url.indexOf("?");
-      const query = queryIndex === -1 ? "" : req.url.substring(queryIndex);
+      const questionMark = req.url.indexOf("?");
+      const search = questionMark === -1 ? "" : req.url.substring(questionMark);
 
-      res.redirect(308, `${req.path}/${query}`);
+      res.redirect(308, `${req.path}/${search}`);
       return;
     }
 
     next();
   });
 
-  app.get("/login/", (req, res) => {
+  app.get("/login", (req, res) => {
     res.type("text/plain; charset=utf-8");
     res.send(login);
   });
 
-  app.get("/code/", (req, res) => {
+  app.get("/code", (req, res) => {
     res.type("text/plain; charset=utf-8");
 
-    const stream = createReadStream(import.meta.url.substring(7));
+    const source = createReadStream(import.meta.url.substring(7));
 
-    stream.on("error", () => {
+    source.on("error", () => {
       if (!res.headersSent) {
         res
           .status(500)
@@ -55,20 +55,15 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
       }
     });
 
-    stream.pipe(res);
+    source.pipe(res);
   });
 
-  app.get("/sha1/:input/", (req, res) => {
-    const value = crypto
-      .createHash("sha1")
-      .update(req.params.input)
-      .digest("hex");
-
+  app.get("/sha1/:input", (req, res) => {
     res.type("text/plain; charset=utf-8");
-    res.send(value);
+    res.send(crypto.createHash("sha1").update(req.params.input).digest("hex"));
   });
 
-  const handleReq = (req, res) => {
+  const getResource = (req, res) => {
     const addr = req.query.addr || req.body?.addr;
 
     if (typeof addr !== "string" || addr.length === 0) {
@@ -79,16 +74,16 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
     try {
       http
         .get(addr, (remoteResponse) => {
-          let content = "";
+          let text = "";
 
           remoteResponse.setEncoding("utf8");
 
           remoteResponse.on("data", (chunk) => {
-            content += chunk;
+            text += chunk;
           });
 
           remoteResponse.on("end", () => {
-            res.type("text/plain; charset=utf-8").send(content);
+            res.type("text/plain; charset=utf-8").send(text);
           });
         })
         .on("error", () => {
@@ -102,10 +97,10 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
     }
   };
 
-  app.get("/req/", handleReq);
-  app.post("/req/", handleReq);
+  app.get("/req", getResource);
+  app.post("/req", getResource);
 
-  app.all(/.*/, (req, res) => {
+  app.all("*", (req, res) => {
     res.type("text/plain; charset=utf-8");
     res.send(login);
   });
