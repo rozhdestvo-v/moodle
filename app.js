@@ -7,12 +7,10 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
 
   app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
-
     res.setHeader(
       "Access-Control-Allow-Methods",
       "GET,POST,PUT,PATCH,OPTIONS,DELETE",
     );
-
     res.setHeader(
       "Access-Control-Allow-Headers",
       "ngrok-skip-browser-warning,Content-Type,Accept,Access-Control-Allow-Headers",
@@ -38,24 +36,36 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
     next();
   });
 
-  app.get("/login", (req, res) => {
+  app.get("/login/", (req, res) => {
     res.type("text/plain; charset=utf-8");
     res.send(login);
   });
 
-  app.get("/code", (req, res) => {
+  app.get("/code/", (req, res) => {
     res.type("text/plain; charset=utf-8");
-    createReadStream(import.meta.url.substring(7)).pipe(res);
+
+    const stream = createReadStream(import.meta.url.substring(7));
+
+    stream.on("error", () => {
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .type("text/plain; charset=utf-8")
+          .send("Cannot read app.js");
+      }
+    });
+
+    stream.pipe(res);
   });
 
-  app.get("/sha1/:input", (req, res) => {
-    const hash = crypto
+  app.get("/sha1/:input/", (req, res) => {
+    const value = crypto
       .createHash("sha1")
       .update(req.params.input)
       .digest("hex");
 
     res.type("text/plain; charset=utf-8");
-    res.send(hash);
+    res.send(value);
   });
 
   const handleReq = (req, res) => {
@@ -67,25 +77,8 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
     }
 
     try {
-      const target = new URL(addr);
-
-      if (target.protocol !== "http:") {
-        res
-          .status(400)
-          .type("text/plain; charset=utf-8")
-          .send("Only http is supported");
-        return;
-      }
-
-      const remoteRequest = http.get(
-        target,
-        {
-          headers: {
-            "User-Agent": "Mozilla/5.0",
-            Accept: "text/plain,text/html,*/*",
-          },
-        },
-        (remoteResponse) => {
+      http
+        .get(addr, (remoteResponse) => {
           let content = "";
 
           remoteResponse.setEncoding("utf8");
@@ -95,27 +88,22 @@ export default (express, bodyParser, createReadStream, crypto, http) => {
           });
 
           remoteResponse.on("end", () => {
-            res
-              .status(remoteResponse.statusCode || 200)
-              .type("text/plain; charset=utf-8")
-              .send(content);
+            res.type("text/plain; charset=utf-8").send(content);
           });
-        },
-      );
-
-      remoteRequest.on("error", () => {
-        res
-          .status(502)
-          .type("text/plain; charset=utf-8")
-          .send("Request failed");
-      });
+        })
+        .on("error", () => {
+          res
+            .status(502)
+            .type("text/plain; charset=utf-8")
+            .send("Request failed");
+        });
     } catch {
       res.status(400).type("text/plain; charset=utf-8").send("Invalid addr");
     }
   };
 
-  app.get("/req", handleReq);
-  app.post("/req", handleReq);
+  app.get("/req/", handleReq);
+  app.post("/req/", handleReq);
 
   app.all(/.*/, (req, res) => {
     res.type("text/plain; charset=utf-8");
